@@ -1,3 +1,4 @@
+// Customer interface representing a customer entity in the application
 export interface Customer {
   id: number
   name: string
