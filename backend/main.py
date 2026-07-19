@@ -85,3 +85,9 @@ def get_customer(customer_id: int, token: str = Depends(require_auth)):
         if customer["id"] == customer_id:
             return customer
     raise HTTPException(status_code=404, detail="Customer not found")
+
+
+@app.get("/api/customers/stats/count")
+def get_customer_count(token: str = Depends(require_auth)):
+    active = sum(1 for customer in CUSTOMERS if customer["status"] == "Active")
+    return {"total": len(CUSTOMERS), "active": active}
