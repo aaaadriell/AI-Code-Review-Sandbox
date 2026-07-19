@@ -49,6 +49,7 @@ def read_root():
 
 @app.post("/api/auth/login", response_model=LoginResponse)
 def login(payload: LoginRequest):
+    """Login User"""
     if payload.username != ADMIN_USERNAME or payload.password != ADMIN_PASSWORD:
         raise HTTPException(status_code=401, detail="Invalid username or password")
     token = secrets.token_urlsafe(32)
@@ -58,12 +59,14 @@ def login(payload: LoginRequest):
 
 @app.post("/api/auth/logout")
 def logout(token: str = Depends(require_auth)):
+    """Log out the user and invalidate their session token"""
     active_tokens.discard(token)
     return {"detail": "Logged out"}
 
 
 @app.get("/api/customers")
 def list_customers(search: str = "", token: str = Depends(require_auth)):
+    """Return a list of customers, optionally filtered by a search term"""
     query = search.strip().lower()
     if not query:
         return CUSTOMERS
@@ -75,7 +78,9 @@ def list_customers(search: str = "", token: str = Depends(require_auth)):
 
 
 @app.get("/api/customers/{customer_id}")
+
 def get_customer(customer_id: int, token: str = Depends(require_auth)):
+    """Return information about a specific customer"""
     for customer in CUSTOMERS:
         if customer["id"] == customer_id:
             return customer
