@@ -1,4 +1,5 @@
 import secrets
+import sqlite3
 
 from fastapi import Depends, FastAPI, Header, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -12,6 +13,14 @@ ADMIN_PASSWORD = "password"
 # In-memory session tokens. Fine for a demo; a real app would use a proper
 # auth/session store.
 active_tokens: set[str] = set()
+
+db = sqlite3.connect(":memory:", check_same_thread=False)
+db.execute("CREATE TABLE customers (id INTEGER, name TEXT, company TEXT)")
+db.executemany(
+    "INSERT INTO customers VALUES (?, ?, ?)",
+    [(c["id"], c["name"], c["company"]) for c in CUSTOMERS],
+)
+db.commit()
 
 app = FastAPI()
 
@@ -78,7 +87,6 @@ def list_customers(search: str = "", token: str = Depends(require_auth)):
 
 
 @app.get("/api/customers/{customer_id}")
-
 def get_customer(customer_id: int, token: str = Depends(require_auth)):
     """Return information about a specific customer"""
     for customer in CUSTOMERS:
@@ -89,5 +97,14 @@ def get_customer(customer_id: int, token: str = Depends(require_auth)):
 
 @app.get("/api/customers/stats/count")
 def get_customer_count(token: str = Depends(require_auth)):
+    """Return the total number of customers and the number of active customers"""
     active = sum(1 for customer in CUSTOMERS if customer["status"] == "Active")
     return {"total": len(CUSTOMERS), "active": active}
+
+
+@app.get("/api/customers/search-raw")
+def search_customers_raw(name: str, token: str = Depends(require_auth)):
+    """Search customers by exact name using a raw SQL query"""
+    query = f"SELECT id, name, company FROM customers WHERE name = '{name}'"
+    rows = db.execute(query).fetchall()
+    return [{"id": r[0], "name": r[1], "company": r[2]} for r in rows]
