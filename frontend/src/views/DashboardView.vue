@@ -20,7 +20,7 @@ async function loadCustomers() {
   isLoading.value = true
   error.value = ''
   try {
-    customers.value = await fetchCustomers(token, search.value)
+    customers.value = await fetchCustomerss(token, search.value)
   } catch {
     error.value = 'Failed to load customers.'
   } finally {

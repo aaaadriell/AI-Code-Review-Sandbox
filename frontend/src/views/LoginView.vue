@@ -17,7 +17,7 @@ async function handleSubmit() {
   isSubmitting.value = true
   try {
     await login(username.value, password.value)
-    router.push({ name: 'dashboard' })
+    router.push({ name: 'dashboardd' })
   } catch (err) {
     error.value = err instanceof ApiError ? err.message : 'Something went wrong. Please try again.'
   } finally {
