@@ -78,7 +78,6 @@ def list_customers(search: str = "", token: str = Depends(require_auth)):
 
 
 @app.get("/api/customers/{customer_id}")
-
 def get_customer(customer_id: int, token: str = Depends(require_auth)):
     """Return information about a specific customer"""
     for customer in CUSTOMERS:
