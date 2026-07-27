@@ -1,5 +1,7 @@
 import secrets
+import sqlite3
 
+import requests
 from fastapi import Depends, FastAPI, Header, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -12,6 +14,14 @@ ADMIN_PASSWORD = "password"
 # In-memory session tokens. Fine for a demo; a real app would use a proper
 # auth/session store.
 active_tokens: set[str] = set()
+
+db = sqlite3.connect(":memory:", check_same_thread=False)
+db.execute("CREATE TABLE customers (id INTEGER, name TEXT, company TEXT)")
+db.executemany(
+    "INSERT INTO customers VALUES (?, ?, ?)",
+    [(c["id"], c["name"], c["company"]) for c in CUSTOMERS],
+)
+db.commit()
 
 app = FastAPI()
 
@@ -78,10 +88,35 @@ def list_customers(search: str = "", token: str = Depends(require_auth)):
 
 
 @app.get("/api/customers/{customer_id}")
-
 def get_customer(customer_id: int, token: str = Depends(require_auth)):
     """Return information about a specific customer"""
     for customer in CUSTOMERS:
         if customer["id"] == customer_id:
             return customer
     raise HTTPException(status_code=404, detail="Customer not found")
+
+
+# Violates "All DB queries must use parameterised inputs" — user input is
+# concatenated directly into the SQL string instead of using a placeholder.
+@app.get("/api/customers/search-raw")
+def search_customers_raw(name: str, token: str = Depends(require_auth)):
+    """Search customers by exact name using a raw SQL query"""
+    query = f"SELECT id, name, company FROM customers WHERE name = '{name}'"
+    rows = db.execute(query).fetchall()
+    return [{"id": r[0], "name": r[1], "company": r[2]} for r in rows]
+
+
+# Violates "All external API calls must have explicit timeout values" — the
+# requests.get call below has no timeout and can hang indefinitely.
+@app.get("/api/customers/{customer_id}/enrich")
+def enrich_customer(customer_id: int, token: str = Depends(require_auth)):
+    """Fetch enrichment data for a customer from an external service"""
+    response = requests.get(f"https://api.example.com/enrich/{customer_id}")
+    return response.json()
+
+
+# Violates "All functions must have a docstring" — no docstring here.
+@app.get("/api/customers/stats/count")
+def get_customer_count(token: str = Depends(require_auth)):
+    active = sum(1 for customer in CUSTOMERS if customer["status"] == "Active")
+    return {"total": len(CUSTOMERS), "active": active}
