@@ -1,0 +1,27 @@
+name: Forward PR Comment Replies for AI Feedback
+
+on:
+  pull_request_review_comment:
+    types: [created]
+
+jobs:
+  forward-feedback:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Forward comment to Review Service
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const comment = context.payload.comment;
+            const response = await fetch(`${{ secrets.REVIEW_SERVICE_URL }}/github-comment`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                repo: context.repo.owner + "/" + context.repo.repo,
+                comment_id: comment.id,
+                in_reply_to_id: comment.in_reply_to_id || null,
+                comment_body: comment.body,
+                comment_user: comment.user.login
+              })
+            });
+            console.log("Review service responded:", response.status, await response.text());
