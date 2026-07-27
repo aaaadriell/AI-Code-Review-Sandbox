@@ -1,5 +1,7 @@
 import secrets
+import sqlite3
 
+import requests
 from fastapi import Depends, FastAPI, Header, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -12,6 +14,14 @@ ADMIN_PASSWORD = "password"
 # In-memory session tokens. Fine for a demo; a real app would use a proper
 # auth/session store.
 active_tokens: set[str] = set()
+
+db = sqlite3.connect(":memory:", check_same_thread=False)
+db.execute("CREATE TABLE customers (id INTEGER, name TEXT, company TEXT)")
+db.executemany(
+    "INSERT INTO customers VALUES (?, ?, ?)",
+    [(c["id"], c["name"], c["company"]) for c in CUSTOMERS],
+)
+db.commit()
 
 app = FastAPI()
 
@@ -78,10 +88,39 @@ def list_customers(search: str = "", token: str = Depends(require_auth)):
 
 
 @app.get("/api/customers/{customer_id}")
-
 def get_customer(customer_id: int, token: str = Depends(require_auth)):
     """Return information about a specific customer"""
     for customer in CUSTOMERS:
         if customer["id"] == customer_id:
             return customer
     raise HTTPException(status_code=404, detail="Customer not found")
+
+
+@app.get("/api/customers/{customer_id}/profile")
+def get_customer_profile(customer_id: int, token: str = Depends(require_auth)):
+    """Return a customer's profile enriched with an external risk score.
+
+    Falls back to a risk score of "unknown" if the external service is
+    unreachable or slow, rather than failing the whole request.
+    """
+    row = db.execute(
+        "SELECT id, name, company FROM customers WHERE id = ?",
+        (customer_id,),
+    ).fetchone()
+    if row is None:
+        raise HTTPException(status_code=404, detail="Customer not found")
+
+    risk_score = "unknown"
+    try:
+        response = requests.get(
+            f"https://api.example.com/risk-score/{customer_id}",
+            timeout=5,
+        )
+        response.raise_for_status()
+        risk_score = response.json().get("score", "unknown")
+    except requests.RequestException:
+        # External service is best-effort enrichment; a failure here
+        # shouldn't take down the whole profile lookup.
+        pass
+
+    return {"id": row[0], "name": row[1], "company": row[2], "risk_score": risk_score}
