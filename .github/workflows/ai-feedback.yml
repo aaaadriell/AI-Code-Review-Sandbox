@@ -18,6 +18,7 @@ jobs:
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({
                 repo: context.repo.owner + "/" + context.repo.repo,
+                pr_number: context.payload.pull_request.number,
                 comment_id: comment.id,
                 in_reply_to_id: comment.in_reply_to_id || null,
                 comment_body: comment.body,
