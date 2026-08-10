@@ -77,11 +77,26 @@ def list_customers(search: str = "", token: str = Depends(require_auth)):
     ]
 
 
-@app.get("/api/customers/{customer_id}")
+@app.get("/api/customers/summary")
+def get_customer_summary(token: str = Depends(require_auth)):
+    """Return aggregate customer stats for the dashboard header (totals by status and revenue)"""
+    status_counts: dict[str, int] = {}
+    for customer in CUSTOMERS:
+        status_counts[customer["status"]] = status_counts.get(customer["status"], 0) + 1
 
+    return {
+        "totalCustomers": len(CUSTOMERS),
+        "totalRevenue": sum(customer["totalSpent"] for customer in CUSTOMERS),
+        "statusCounts": status_counts,
+    }
+
+
+@app.get("/api/customers/{customer_id}")
 def get_customer(customer_id: int, token: str = Depends(require_auth)):
     """Return information about a specific customer"""
     for customer in CUSTOMERS:
         if customer["id"] == customer_id:
             return customer
     raise HTTPException(status_code=404, detail="Customer not found")
+
+
