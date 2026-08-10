@@ -23,7 +23,7 @@ async function loadCustomer() {
   error.value = ''
   customer.value = null
   try {
-    customer.value = await fetchCustomer(token, Number(props.id))
+    customer.value = await fetchCustomers(token, Number(props.id))
   } catch (err) {
     error.value = err instanceof ApiError && err.status === 404 ? 'Customer not found.' : 'Failed to load customer.'
   } finally {
